@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace MonoEncrypt
 {
@@ -47,14 +45,8 @@ namespace MonoEncrypt
                 clients.Add(client);
                 NetworkStream stream = client.GetStream();
 
-                string privateKey = KeyGenerator();
+                Key(stream);
 
-                byte[] buffer = Encoding.UTF8.GetBytes(encryption.key + privateKey);
-                stream.Write(buffer, 0, buffer.Length);
-
-                int read = stream.Read(buffer, 0, buffer.Length);
-                string msg = Encoding.UTF8.GetString(buffer, 0, read);
-                key = msg + privateKey;
                 ReceiveMessage(stream, key);
             }
         }
@@ -70,6 +62,7 @@ namespace MonoEncrypt
                 msg = Decrypt(msg, key);
                 //msg = encryption.Decrypt(msg);
                 Console.WriteLine("The client wrote: \n" + msg);
+                Console.WriteLine("Write your message: ");
             }
         }
         public string KeyGenerator()
@@ -84,32 +77,57 @@ namespace MonoEncrypt
         }
         public string Encrypt(string msg, string key)
         {
-            char[] chars = new char[msg.Length];
+            Random random = new Random();
+            int place = 0;
+            string noSpace = msg.Replace(" ", "");
+            int charLength = (noSpace.Length * 3) + msg.Length + 14;
+            char[] chars = new char[charLength];
+            for (int i = 0; i <= 7; i++)
+            {
+                chars[i] = char.Parse(random.Next(9).ToString());
+                place = i;
+            }
+            int c = place;
             for (int i = 0; i < msg.Length; i++)
             {
                 if (msg[i] == ' ')
                 {
-                    chars[i] = '!';
+                    chars[c] = '!';
+                    c++;
                 }
                 else
                 {
-                    int j = msg[i] - 97;
-                    chars[i] = key[j];
+                    int k = msg[i] - 97;
+                    string sub = key.Substring(k, 4);
+                    char[] keys = sub.ToCharArray();
+                    for (int j = 0; j < keys.Length; j++)
+                    {
+                        chars[j + c] = keys[j];
+                    }
+                    c += 4;
                 }
             }
 
+            for (int i = chars.Length - 1; i > chars.Length - 8; i--)
+            {
+                chars[i] = char.Parse(random.Next(9).ToString());
+            }
+            Console.WriteLine(new string(chars));
             return new string(chars);
         }
+    
         public string Decrypt(string msg, string key)
         {
+            Console.WriteLine(msg);
             char[] chars = new char[msg.Length];
-
+            
             int count = 0;
-            for (int i = 0; i < msg.Length; i++)
+            for (int i = 7; i < msg.Length-8; i++)
             {
                 if (msg[i] == '!')
                 {
                     chars[count] = ' ';
+                    count++;
                 }
                 else if(msg[i] == '\0')
                 {
@@ -117,8 +135,8 @@ namespace MonoEncrypt
                 }
                 else
                 {
-                    string bla = msg.Substring(i, 4);
-                    int k = key.IndexOf(bla) + 97;
+                    string sub = msg.Substring(i, 4);
+                    int k = key.IndexOf(sub) + 97;
                     chars[count] = (char)k;
                     i += 3;
                     count++;
@@ -126,5 +144,18 @@ namespace MonoEncrypt
             }
             return new string(chars);
         }
+        public void Key(NetworkStream stream)
+        {
+            string privateKey = KeyGenerator();
+
+            byte[] buffer = Encoding.UTF8.GetBytes(encryption.key + privateKey);
+            stream.Write(buffer, 0, buffer.Length);
+
+            buffer = new byte[256];
+            int read = stream.Read(buffer, 0, buffer.Length);
+            string msg = Encoding.UTF8.GetString(buffer, 0, read);
+            key = msg + privateKey;
+        }
+
     }
 }

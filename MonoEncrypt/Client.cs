@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace MonoEncrypt
 {
@@ -57,6 +54,7 @@ namespace MonoEncrypt
                 msg = Decrypt(msg, key);
                 //msg = encryption.Decrypt(msg);
                 Console.WriteLine("The server wrote: \n" + msg);
+                Console.WriteLine("Write your message: ");
             }
         }
 
@@ -73,42 +71,68 @@ namespace MonoEncrypt
 
         public string Encrypt(string msg, string key)
         {
-            char[] chars = new char[msg.Length*5];
-            int c = 0;
+            Random random = new Random();
+            int place = 0;
+            string noSpace = msg.Replace(" ", "");
+            int charLength = (noSpace.Length * 3) + msg.Length + 14;
+            char[] chars = new char[charLength];
+            for (int i = 0; i <= 7; i++)
+            {
+                chars[i] = char.Parse(random.Next(9).ToString());
+                place = i;
+            }
+            int c = place;
             for (int i = 0; i < msg.Length; i++)
             {
                 if (msg[i] == ' ')
                 {
                     chars[c] = '!';
+                    c++;
                 }
                 else
                 {
                     int k = msg[i] - 97;
-                    string bla = key.Substring(k, 4);
-                    char[] keys = bla.ToCharArray();
+                    string sub = key.Substring(k, 4);
+                    char[] keys = sub.ToCharArray();
                     for (int j = 0; j < keys.Length; j++)
                     {
-                        chars[j+c] = keys[j];
+                        chars[j + c] = keys[j];
                     }
                     c += 4;
                 }
             }
+
+            for (int i = chars.Length-1; i > chars.Length - 8; i--)
+            {
+                chars[i] = char.Parse(random.Next(9).ToString());
+            }
+            Console.WriteLine(new string(chars));
             return new string(chars);
         }
         public string Decrypt(string msg, string key)
         {
+            Console.WriteLine(msg);
             char[] chars = new char[msg.Length];
 
-            for (int i = 0; i < msg.Length; i++)
+            int count = 0;
+            for (int i = 7; i < msg.Length - 8; i++)
             {
                 if (msg[i] == '!')
                 {
-                    chars[i] = ' ';
+                    chars[count] = ' ';
+                    count++;
+                }
+                else if (msg[i] == '\0')
+                {
+                    continue;
                 }
                 else
                 {
-                    int j = key.IndexOf(msg[i]) + 97;
-                    chars[i] = (char)j;
+                    string sub = msg.Substring(i, 4);
+                    int k = key.IndexOf(sub) + 97;
+                    chars[count] = (char)k;
+                    i += 3;
+                    count++;
                 }
             }
             return new string(chars);
@@ -119,6 +143,7 @@ namespace MonoEncrypt
 
             byte[] buffer = Encoding.UTF8.GetBytes(privateKey + encryption.key);
             stream.Write(buffer, 0, buffer.Length);
+
             buffer = new byte[256];
             int read = stream.Read(buffer, 0, buffer.Length);
             string msg = Encoding.UTF8.GetString(buffer, 0, read);
